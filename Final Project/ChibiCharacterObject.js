@@ -1,5 +1,5 @@
-import SceneObject from '/lib/DSViz/SceneObject.js';
-import { createChibiCharacterPolygon } from './createChibiCharacterPolygon.js';
+import SceneObject from '/Final Project/lib/DSViz/SceneObject.js';
+import { createChibiCharacterPolygon } from '/Final Project/createChibiCharacterPolygon.js';
 
 export default class ChibiCharacterObject extends SceneObject {
   constructor(device, canvasFormat, color = new Float32Array([1, 1, 1, 1]), initialState = {}) {

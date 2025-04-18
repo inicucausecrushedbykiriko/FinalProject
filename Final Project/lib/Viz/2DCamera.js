@@ -21,7 +21,7 @@
  *                                anything the license permits.
  */
  
-import PGA2D from '/lib/Math/PGA2D.js'
+import PGA2D from '/Final Project/lib/Math/PGA2D.js'
  
 export default class Camera {
   constructor() {

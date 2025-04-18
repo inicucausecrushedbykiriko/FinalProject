@@ -21,7 +21,7 @@
  *                                anything the license permits.
  */
 
-import SceneObject from "/lib/DSViz/SceneObject.js"
+import SceneObject from "/Final Project/lib/DSViz/SceneObject.js"
 
 export default class Standard2DVertexObject extends SceneObject {
   constructor(device, canvasFormat, vertices) {
@@ -52,7 +52,7 @@ export default class Standard2DVertexObject extends SceneObject {
   }
   
   async createShaders() {
-    let shaderCode = await this.loadShader("/shaders/standard2d.wgsl");
+    let shaderCode = await this.loadShader("/Final Project/shaders/standard2d.wgsl");
     this._shaderModule = this._device.createShaderModule({
       label: " Shader " + this.getName(),
       code: shaderCode,

@@ -1,5 +1,5 @@
-import Renderer from '/lib/Viz/2DRenderer.js';
-import ChibiCharacterObject from './ChibiCharacterObject.js';
+import Renderer from '/Final Project/lib/Viz/2DRenderer.js';
+import ChibiCharacterObject from '/Final Project/ChibiCharacterObject.js';
 
 async function initRenderer(canvas) {
   const renderer = new Renderer(canvas);

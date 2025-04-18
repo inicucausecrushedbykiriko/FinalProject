@@ -1,10 +1,10 @@
-import Renderer from '/lib/Viz/2DRenderer.js';
-import ParticleSystemObject from '/lib/DSViz/ParticleSystemObject.js';
+import Renderer from '/Final Project/lib/Viz/2DRenderer.js';
+import ParticleSystemObject from '/Final Project/lib/DSViz/ParticleSystemObject.js';
 
 window.onload = async function () {
   const startGameButton = document.getElementById("startGameButton");
   startGameButton.addEventListener("click", function () {
-    window.location.href = "game.html";
+    window.location.href = "/Final Project/game.html";
   });
 
   const toggleInstructionsButton = document.getElementById("toggleInstructionsButton");
@@ -35,10 +35,10 @@ window.onload = async function () {
   canvas.addEventListener('mousemove', (e) => {
     const x = (e.clientX / window.innerWidth) * 2 - 1;
     const y = (-e.clientY / window.innerHeight) * 2 + 1;
-    particleSystem.updateMouseState(x, y, true);
+    //particleSystem.updateMouseState(x, y, true);
   });
   canvas.addEventListener('mouseleave', () => {
-    particleSystem.updateMouseState(0, 0, false);
+    //particleSystem.updateMouseState(0, 0, false);
   });
 
   function frame() {

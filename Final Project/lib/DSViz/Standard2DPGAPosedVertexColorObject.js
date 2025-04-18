@@ -21,7 +21,7 @@
  *                                anything the license permits.
  */
 
-import SceneObject from "/lib/DSViz/SceneObject.js"
+import SceneObject from "/Final Project/lib/DSViz/SceneObject.js"
 
 export default class Standard2DPGAPosedVertexColorObject extends SceneObject {
   constructor(device, canvasFormat, vertices, pose) {
@@ -71,7 +71,7 @@ export default class Standard2DPGAPosedVertexColorObject extends SceneObject {
   }
   
   async createShaders() {
-    let shaderCode = await this.loadShader("/shaders/standard2dpgacolored.wgsl");
+    let shaderCode = await this.loadShader("/Final Project/shaders/standard2dpgacolored.wgsl");
     this._shaderModule = this._device.createShaderModule({
       label: " Shader " + this.getName(),
       code: shaderCode,

@@ -21,7 +21,7 @@
  *                                anything the license permits.
  */
 
-import SceneObject from '/lib/DSViz/SceneObject.js';
+import SceneObject from '/Final Project/lib/DSViz/SceneObject.js';
 
 export default class MassSpringSystemObject extends SceneObject {
   constructor(device, canvasFormat, size = 16) {
@@ -133,7 +133,7 @@ export default class MassSpringSystemObject extends SceneObject {
   updateGeometry() { }
   
   async createShaders() {
-    let shaderCode = await this.loadShader("/shaders/massspring.wgsl");
+    let shaderCode = await this.loadShader("/Final Project/shaders/massspring.wgsl");
     this._shaderModule = this._device.createShaderModule({
       label: "MassSpring Shader " + this.getName(),
       code: shaderCode,
