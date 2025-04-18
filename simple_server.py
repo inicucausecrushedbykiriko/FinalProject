@@ -20,11 +20,13 @@
  *                                measures that legally restrict others from doing
  *                                anything the license permits.
 """
-
+import os
 import http.server
 import socketserver
 
 PORT = 8081
+
+os.chdir("..")
 
 Handler = http.server.SimpleHTTPRequestHandler
 Handler.extensions_map.update({
