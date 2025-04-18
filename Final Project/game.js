@@ -1,115 +1,136 @@
-import Renderer from '/Final Project/lib/Viz/2DRenderer.js';
+
+import Renderer             from '/Final Project/lib/Viz/2DRenderer.js';
 import ChibiCharacterObject from '/Final Project/ChibiCharacterObject.js';
+import GroundObject         from '/Final Project/GroundObject.js';
 
-async function initRenderer(canvas) {
-  const renderer = new Renderer(canvas);
-  await renderer.init();
-  return renderer;
-}
 
-async function createCharacter(device, canvasFormat, colorArray, initialPos) {
-  const character = new ChibiCharacterObject(device, canvasFormat, colorArray, {
-    position: initialPos,
-  });
-  await character.createGeometry();
-  await character.createShaders();
-  await character.createRenderPipeline();
-  await character.createComputePipeline();
-  return character;
-}
+const WALL_THK   = 0.05;
 
-export async function initGame() {
-  const canvas = document.getElementById("gameCanvas");
-  if (!canvas) {
-    console.error("No canvas found with id='gameCanvas'");
-    return;
+const LEFT_IN    = -1 + WALL_THK;
+const RIGHT_IN   =  1 - WALL_THK;
+const CEIL_IN    =  1 - WALL_THK;
+const GROUND_Y   = -1 + WALL_THK;
+
+const CHAR_HALF_W = 0.08;
+const CHAR_HALF_H = 0.15;
+
+const MOVE_SPEED  = 0.5;
+const JUMP_SPEED  = 1.5;
+const GRAVITY     = 2.5;
+
+
+function clampRoom(pos, vel){
+  /* left & right walls */
+  if (pos[0] - CHAR_HALF_W < LEFT_IN){
+    pos[0] = LEFT_IN + CHAR_HALF_W; vel[0] = 0;
+  } else if (pos[0] + CHAR_HALF_W > RIGHT_IN){
+    pos[0] = RIGHT_IN - CHAR_HALF_W; vel[0] = 0;
   }
+  /* ceiling */
+  if (pos[1] + CHAR_HALF_H > CEIL_IN){
+    pos[1] = CEIL_IN - CHAR_HALF_H;  vel[1] = 0;
+  }
+}
+function landGround(pos, vel){
+  if (pos[1] - CHAR_HALF_H <= GROUND_Y){
+    pos[1] = GROUND_Y + CHAR_HALF_H;
+    vel[1] = 0;
+    return true;
+  }
+  return false;
+}
+
+
+async function initRenderer(canvas){
+  const r = new Renderer(canvas);
+  await r.init();
+  return r;
+}
+async function createCharacter(device, fmt, color, start){
+  const c = new ChibiCharacterObject(device, fmt, color, {position:start});
+  await c.createGeometry();
+  await c.createShaders();
+  await c.createRenderPipeline();
+  await c.createComputePipeline();
+  return c;
+}
+
+
+export async function initGame(){
+  const canvas = document.getElementById('gameCanvas');
+  if (!canvas){ console.error("No #gameCanvas found"); return; }
 
   const renderer = await initRenderer(canvas);
 
-  let redPos  = [0.0, 0.0];
-  let bluePos = [0.4, 0.0];
+  /* ----- build room edges ----- */
+  const roomRects = [
+    /* floor    */ new GroundObject(renderer._device, renderer._canvasFormat,
+                                    2, WALL_THK, [-1,  GROUND_Y]),
+    /* ceiling  */ new GroundObject(renderer._device, renderer._canvasFormat,
+                                    2, WALL_THK, [-1,  1]),
+    /* left wall*/ new GroundObject(renderer._device, renderer._canvasFormat,
+                                    WALL_THK, CEIL_IN - GROUND_Y, [-1, CEIL_IN]),
+    /* right wall*/new GroundObject(renderer._device, renderer._canvasFormat,
+                                    WALL_THK, CEIL_IN - GROUND_Y, [RIGHT_IN, CEIL_IN])
+  ];
+  for (const r of roomRects) await renderer.appendSceneObject(r);
 
-  let redVel  = [0.0, 0.0];
-  let blueVel = [0.0, 0.0];
+  let redPos  = [LEFT_IN + 0.5, GROUND_Y + CHAR_HALF_H];
+  let bluePos = [LEFT_IN + 0.8, GROUND_Y + CHAR_HALF_H];
+  let redVel  = [0,0], blueVel = [0,0];
+  let redOnG  = true,  blueOnG = true;
 
-  const MOVE_SPEED = 0.5;   
-  const JUMP_SPEED = 1.5;   
-  const GRAVITY    = 2.5;  
-  let redOnGround  = true;
-  let blueOnGround = true;
-
-  const redColor  = new Float32Array([1, 0, 0, 1]);
-  const blueColor = new Float32Array([0, 0, 1, 1]);
-
-  const redChar  = await createCharacter(renderer._device, renderer._canvasFormat, redColor,  redPos);
-  const blueChar = await createCharacter(renderer._device, renderer._canvasFormat, blueColor, bluePos);
+  const redChar  = await createCharacter(renderer._device, renderer._canvasFormat,
+                     new Float32Array([1,0,0,1]),  redPos);
+  const blueChar = await createCharacter(renderer._device, renderer._canvasFormat,
+                     new Float32Array([0,0,1,1]), bluePos);
 
   renderer.appendSceneObject(redChar);
   renderer.appendSceneObject(blueChar);
 
-  const keys = {};
-  window.addEventListener('keydown', e => { keys[e.key] = true; });
-  window.addEventListener('keyup',   e => { keys[e.key] = false; });
+  /* ----- keyboard ----- */
+  const keys = Object.create(null);
+  addEventListener('keydown', e=>keys[e.key]=true);
+  addEventListener('keyup',   e=>keys[e.key]=false);
 
-  const ratio = canvas.width / canvas.height;
-  redChar.setAspect(ratio);
-  blueChar.setAspect(ratio);
+  /* adapt aspect on resize */
+  const ratio = canvas.width/canvas.height;
+  redChar.setAspect(ratio);  blueChar.setAspect(ratio);
 
-  let lastTime = performance.now();
-  function gameLoop(now = performance.now()) {
-    const dt = (now - lastTime) / 1000; 
-    lastTime = now;
+  /* ----- main loop ----- */
+  let last = performance.now();
+  function loop(now = performance.now()){
+    const dt = (now-last)/1000; last = now;
 
-    if (keys['a'])      redVel[0] = -MOVE_SPEED;
-    else if (keys['d']) redVel[0] =  MOVE_SPEED;
-    else                redVel[0] =  0;
+    /* horizontal */
+    redVel[0]  = keys['a']? -MOVE_SPEED : keys['d']? MOVE_SPEED : 0;
+    blueVel[0] = keys['ArrowLeft']? -MOVE_SPEED :
+                 keys['ArrowRight']?  MOVE_SPEED : 0;
 
-    if (keys['w'] && redOnGround) {
-      redVel[1] = JUMP_SPEED;
-      redOnGround = false;
-    }
+    /* jump */
+    if (keys['w'] && redOnG){ redVel[1] = JUMP_SPEED; redOnG=false; }
+    if (keys['ArrowUp'] && blueOnG){ blueVel[1] = JUMP_SPEED; blueOnG=false; }
 
-    redVel[1] -= GRAVITY * dt;
+    /* physics integrate */
+    redVel[1]  -= GRAVITY*dt;  blueVel[1] -= GRAVITY*dt;
 
-    redPos[0] += redVel[0] * dt;
-    redPos[1] += redVel[1] * dt;
+    redPos[0]  += redVel[0]*dt; redPos[1]  += redVel[1]*dt;
+    bluePos[0] += blueVel[0]*dt; bluePos[1] += blueVel[1]*dt;
 
-    if (redPos[1] <= 0) {
-      redPos[1] = 0;
-      redVel[1] = 0;
-      redOnGround = true;
-    }
+    /* collisions */
+    clampRoom(redPos, redVel);
+    clampRoom(bluePos, blueVel);
 
-    redChar.setPosition(redPos[0], redPos[1]);
+    redOnG  = landGround(redPos,  redVel);
+    blueOnG = landGround(bluePos, blueVel);
 
-    if (keys['ArrowLeft'])      blueVel[0] = -MOVE_SPEED;
-    else if (keys['ArrowRight']) blueVel[0] =  MOVE_SPEED;
-    else                         blueVel[0] =  0;
-
-    if (keys['ArrowUp'] && blueOnGround) {
-      blueVel[1] = JUMP_SPEED;
-      blueOnGround = false;
-    }
-
-    blueVel[1] -= GRAVITY * dt;
-
-    bluePos[0] += blueVel[0] * dt;
-    bluePos[1] += blueVel[1] * dt;
-
-    if (bluePos[1] <= 0) {
-      bluePos[1] = 0;
-      blueVel[1] = 0;
-      blueOnGround = true;
-    }
-
+    redChar.setPosition(redPos[0],  redPos[1]);
     blueChar.setPosition(bluePos[0], bluePos[1]);
 
     renderer.render();
-    requestAnimationFrame(gameLoop);
+    requestAnimationFrame(loop);
   }
-
-  requestAnimationFrame(gameLoop);
+  requestAnimationFrame(loop);
 }
 
-initGame().catch(err => console.error(err));
+initGame().catch(console.error);
