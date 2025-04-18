@@ -1,5 +1,5 @@
-// /Final Project/GroundObject.js
-import SceneObject from '/Final Project/lib/DSViz/SceneObject.js';
+// /FinalProject/Final Project/GroundObject.js
+import SceneObject from '/FinalProject/Final Project/lib/DSViz/SceneObject.js';
 
 /* Draws one axis‑aligned rectangle.
  *

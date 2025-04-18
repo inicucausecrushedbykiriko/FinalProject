@@ -1,7 +1,7 @@
 
-import Renderer             from '/Final Project/lib/Viz/2DRenderer.js';
-import ChibiCharacterObject from '/Final Project/ChibiCharacterObject.js';
-import GroundObject         from '/Final Project/GroundObject.js';
+import Renderer             from '/FinalProject/FinalProject/Final Project/lib/Viz/2DRenderer.js';
+import ChibiCharacterObject from '/FinalProject/Final Project/ChibiCharacterObject.js';
+import GroundObject         from '/FinalProject/Final Project/GroundObject.js';
 
 
 const WALL_THK   = 0.05;

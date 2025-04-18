@@ -21,7 +21,7 @@
  *                                anything the license permits.
  */
 
-import SceneObject from "/Final Project/lib/DSViz/SceneObject.js"
+import SceneObject from "/FinalProject/Final Project/lib/DSViz/SceneObject.js"
 
 export default class Standard2DFullScreenObject extends SceneObject {
   constructor(device, canvasFormat, img) {
@@ -52,7 +52,7 @@ export default class Standard2DFullScreenObject extends SceneObject {
   }
   
   async createShaders() {
-    let shaderCode = await this.loadShader("/Final Project/shaders/fullscreen.wgsl");
+    let shaderCode = await this.loadShader("/FinalProject/Final Project/shaders/fullscreen.wgsl");
     this._shaderModule = this._device.createShaderModule({
       label: " Shader " + this.getName(),
       code: shaderCode,

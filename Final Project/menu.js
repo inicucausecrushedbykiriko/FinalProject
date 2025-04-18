@@ -1,10 +1,10 @@
-import Renderer from '/Final Project/lib/Viz/2DRenderer.js';
-import ParticleSystemObject from '/Final Project/lib/DSViz/ParticleSystemObject.js';
+import Renderer from '/FinalProject/Final Project/lib/Viz/2DRenderer.js';
+import ParticleSystemObject from '/FinalProject/Final Project/lib/DSViz/ParticleSystemObject.js';
 
 window.onload = async function () {
   const startGameButton = document.getElementById("startGameButton");
   startGameButton.addEventListener("click", function () {
-    window.location.href = "/Final Project/game.html";
+    window.location.href = "/FinalProject/Final Project/game.html";
   });
 
   const toggleInstructionsButton = document.getElementById("toggleInstructionsButton");

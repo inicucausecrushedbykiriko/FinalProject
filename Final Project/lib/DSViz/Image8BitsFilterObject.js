@@ -21,11 +21,11 @@
  *                                anything the license permits.
  */
 
-import ImageFilterObject from "/Final Project/lib/DSViz/ImageFilterObject.js"
+import ImageFilterObject from "/FinalProject/Final Project/lib/DSViz/ImageFilterObject.js"
 
 export default class Image8BitsFilterObject extends ImageFilterObject {
   async createShaders() {
-    let shaderCode = await this.loadShader("/Final Project/shaders/computequantize8bits.wgsl");
+    let shaderCode = await this.loadShader("/FinalProject/Final Project/shaders/computequantize8bits.wgsl");
     this._shaderModule = this._device.createShaderModule({
       label: " Shader " + this.getName(),
       code: shaderCode,

@@ -21,7 +21,7 @@
  *                                anything the license permits.
  */
 
-import SceneObject from '/Final Project/lib/DSViz/SceneObject.js'
+import SceneObject from '/FinalProject/Final Project/lib/DSViz/SceneObject.js'
 
 export default class ParticleSystemObject extends SceneObject {
   constructor(device, canvasFormat, numParticles = 4096) {
@@ -81,7 +81,7 @@ export default class ParticleSystemObject extends SceneObject {
   updateGeometry() { }
   
   async createShaders() {
-    let shaderCode = await this.loadShader("/Final Project/shaders/particles.wgsl");
+    let shaderCode = await this.loadShader("/FinalProject/Final Project/shaders/particles.wgsl");
     this._shaderModule = this._device.createShaderModule({
       label: "Particles Shader " + this.getName(),
       code: shaderCode,
