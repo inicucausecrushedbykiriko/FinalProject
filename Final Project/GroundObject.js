@@ -20,7 +20,7 @@ export default class GroundObject extends SceneObject {
     this.h    = height;
     this.color = color;
   }
-
+ 
   /* ---------- geometry ---------- */
   async createGeometry() {
     const [x0, y0] = this.tl;
