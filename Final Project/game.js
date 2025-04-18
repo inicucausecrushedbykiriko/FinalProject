@@ -1,5 +1,5 @@
 
-import Renderer             from '/FinalProject/FinalProject/Final Project/lib/Viz/2DRenderer.js';
+import Renderer             from '/FinalProject/Final Project/lib/Viz/2DRenderer.js';
 import ChibiCharacterObject from '/FinalProject/Final Project/ChibiCharacterObject.js';
 import GroundObject         from '/FinalProject/Final Project/GroundObject.js';
 
