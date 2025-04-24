@@ -16,11 +16,12 @@ const RIGHT_IN   =  1 - WALL_THK;
 const CEIL_IN    =  1 - WALL_THK;
 const GROUND_Y   = -1 + WALL_THK;
 
-const CHAR_HALF_W = 0.08;
-const CHAR_HALF_H = 0.15;
+const CHAR_HALF_W = 0.02;   // 0.17 × 0.2
+const CHAR_HALF_H = 0.065;   // 0.325 × 0.2
+const RENDER_OFFSET_Y = 0.035;   // polygon origin is 0.035 above centre
 
-const MOVE_SPEED  = 0.50;
-const JUMP_SPEED  = 1.50;
+const MOVE_SPEED  = 0.40;
+const JUMP_SPEED  = 1.0;
 const GRAVITY     = 2.50;
 
 //--------------------------------------------------------------------
@@ -53,12 +54,17 @@ const X2 =  0.00;
 const X3 =  0.60;
 const X4 =  0.70;   // gap starts here
 
+
+import SwitchObject from '/FinalProject/Final Project/SwitchObject.js';
+
+const SWITCH_BASE_W = 0.12;
 // ---------- SECOND FLOOR (gap on left + 2 recessed troughs) ----------
 const Y_TOP = Y0 + 0.35;
 const D       = 0.07;  // depth of troughs
 const GAP_W   = 0.25;
 const RAMP_W  = 0.04;
 const TROUGH_W= 0.10;
+
 
 const U0 = LEFT_IN + GAP_W;
 const U1 = U0 + 0.20;
@@ -253,28 +259,103 @@ function landGround(pos, vel){
   if (pos[1] - CHAR_HALF_H <= GROUND_Y){ pos[1]=GROUND_Y+CHAR_HALF_H; vel[1]=0; return true;}
   return false;
 }
-function landOnPlatforms(pos, vel){
+
+/* --------------------------------------------------------------- *
+ *   E N H A N C E D   C O L L I S I O N   H E L P E R S
+ * --------------------------------------------------------------- */
+
+/* AABB vs char – handles top, bottom, and side hits */
+function collideAABB(rect, pos, vel){
+  const left   = rect.x;
+  const right  = rect.x + rect.w;
+  const top    = rect.y;
+  const bottom = top - (rect.h ?? WALL_THK);
+
+  const cxL = pos[0] - CHAR_HALF_W;
+  const cxR = pos[0] + CHAR_HALF_W;
+  const cyT = pos[1] + CHAR_HALF_H;
+  const cyB = pos[1] - CHAR_HALF_H;
+
+  if (cxR <= left || cxL >= right || cyB >= top || cyT <= bottom) return null;
+
+  const penL = right  - cxL;
+  const penR = cxR - left;
+  const penT = cyT - bottom;
+  const penB = top  - cyB;
+  const minPen = Math.min(penL, penR, penT, penB);
+
+  if (minPen === penT){              // hit underside
+    pos[1] -= penT; vel[1] = Math.min(0, vel[1]); return 'ceiling';
+  }
+  if (minPen === penB){              // landed on top
+    pos[1] += penB; vel[1] = Math.max(0, vel[1]); return 'ground';
+  }
+  if (minPen === penL){              // ran into right wall
+    if (top - (pos[1] - CHAR_HALF_H) <= 0.04){
+      pos[1] = top + CHAR_HALF_H; vel[1] = 0; return 'ground';
+      }
+      pos[0] += penL; vel[0] = Math.max(0, vel[0]); return 'wall';
+  }
+  if (minPen === penR){              // ran into left wall
+    if (top - (pos[1] - CHAR_HALF_H) <= 0.04){
+      pos[1] = top + CHAR_HALF_H; vel[1] = 0; return 'ground';
+      }
+      pos[0] -= penR; vel[0] = Math.min(0, vel[0]); return 'wall';
+  }
+  return null;
+}
+
+/* iterate every rectangle */
+function resolvePlatformCollisions(pos, vel){
+  let onGround = false;
   for (const p of platformDefs){
-    const left=p.x, right=p.x+p.w, topY=p.y;
-    if (pos[0]+CHAR_HALF_W>left && pos[0]-CHAR_HALF_W<right){
-      const pen=(pos[1]-CHAR_HALF_H)-topY;
-      if (pen<=0.01 && vel[1]<=0){ pos[1]=topY+CHAR_HALF_H; vel[1]=0; return true; }
-    }
+    const hit = collideAABB(p, pos, vel);
+    if (hit === 'ground') onGround = true;
   }
-  return false;
+  return onGround;
 }
-function landOnSlopes(pos, vel){
+
+/* upper-edge + lower-edge test for each slope */
+function collideSlope(sl, pos, vel){
+  const [TL, BL, TR, BR] = sl.p;          // TL, BL, TR, BR
+  const xL = TL[0], xR = TR[0];
+
+  /* outside horizontal span → no hit */
+  if (pos[0] + CHAR_HALF_W < xL || pos[0] - CHAR_HALF_W > xR) return null;
+
+  /* interpolate both upper and lower edges */
+  const t    = (pos[0] - xL) / (xR - xL);
+  const yTop = TL[1]*(1 - t) + TR[1]*t;   // ramp surface
+  const yBot = BL[1]*(1 - t) + BR[1]*t;   // true underside
+
+  const foot = pos[1] - CHAR_HALF_H;
+  const head = pos[1] + CHAR_HALF_H;
+
+  /* land on ramp */
+  if (foot <= yTop && vel[1] <= 0 && foot >= yTop - 0.02){
+    pos[1] = yTop + CHAR_HALF_H;
+    vel[1] = 0;
+    return 'ground';
+  }
+  /* hit underside while jumping */
+  if (head >= yBot && vel[1] >= 0 && head <= yBot + 0.02){
+    pos[1] = yBot - CHAR_HALF_H;
+    vel[1] = 0;
+    return 'ceiling';
+  }
+  return null;
+}
+
+
+function resolveSlopeCollisions(pos, vel){
+  let onGround = false;
   for (const s of slopeDefs){
-    const [TL,BL,TR] = s.p;
-    const xL=TL[0], xR=TR[0];
-    if (pos[0]+CHAR_HALF_W < xL || pos[0]-CHAR_HALF_W > xR) continue;
-    const t  =(pos[0]-xL)/(xR-xL);
-    const top=TL[1]*(1-t)+TR[1]*t;
-    const pen=(pos[1]-CHAR_HALF_H)-top;
-    if (pen<=0.01 && vel[1]<=0){ pos[1]=top+CHAR_HALF_H; vel[1]=0; return true; }
+    const hit = collideSlope(s, pos, vel);
+    if (hit === 'ground') onGround = true;
   }
-  return false;
+  return onGround;
 }
+
 
 //--------------------------------------------------------------------
 //  Renderer helpers
@@ -301,6 +382,19 @@ export async function initGame(){
 
   for(const p of buildPlatforms(r)) await r.appendSceneObject(p);
   for(const s of buildSlopes(r))    await r.appendSceneObject(s);
+
+    /* --- first-floor switch position (centre) --- */
+    const switchDef = {
+      /* centre of flat-1 = midpoint of X0..X1, then move left by half base-width */
+      x : (X0 + X1) * 0.5 - SWITCH_BASE_W * 0.5,
+      /* top surface is exactly Y0 (don’t add WALL_THK) */
+      y : Y0
+      };
+  /* ----- first-floor switch ----- */
+  const lever = new SwitchObject(r._device, r._canvasFormat,
+    [switchDef.x, switchDef.y]);
+  await lever.init();
+  await r.appendSceneObject(lever);
 
   /* characters */
   let redPos=[LEFT_IN+0.15,GROUND_Y+CHAR_HALF_H],
@@ -332,12 +426,36 @@ export async function initGame(){
     redPos[0]+=redVel[0]*dt; redPos[1]+=redVel[1]*dt;
     bluePos[0]+=blueVel[0]*dt; bluePos[1]+=blueVel[1]*dt;
 
-    clampRoom(redPos,redVel); clampRoom(bluePos,blueVel);
-    redOnG = landGround(redPos,redVel)||landOnPlatforms(redPos,redVel)||landOnSlopes(redPos,redVel);
-    blueOnG= landGround(bluePos,blueVel)||landOnPlatforms(bluePos,blueVel)||landOnSlopes(bluePos,blueVel);
+    /* collisions */
+    clampRoom(redPos,  redVel);
+    clampRoom(bluePos, blueVel);
 
-    redChar.setPosition(redPos[0],redPos[1]);
-    bluChar.setPosition(bluePos[0],bluePos[1]);
+    redOnG  = landGround(redPos,  redVel)  ||
+              resolvePlatformCollisions(redPos,  redVel) ||
+              resolveSlopeCollisions(redPos,  redVel);
+
+    blueOnG = landGround(bluePos, blueVel) ||
+              resolvePlatformCollisions(bluePos, blueVel) ||
+              resolveSlopeCollisions(bluePos, blueVel);
+        /* --- switch push detection --- */
+    const sw = lever.bbox();
+    /* --- floor-button press detection --- */
+    function pressTest(pos){
+      const sw = lever.bbox();                 // top-left coord frame
+      const footY = pos[1] - CHAR_HALF_H;      // character’s feet
+      const withinX = (pos[0] + CHAR_HALF_W > sw.x) && (pos[0] - CHAR_HALF_W < sw.x + sw.w);
+      const onTop   = Math.abs(footY - sw.y) <= 0.02;   // small tolerance
+      if (withinX && onTop) lever.press();
+    }
+
+    pressTest(redPos);    // call each frame after collisions
+    pressTest(bluePos);
+
+
+
+
+    redChar.setPosition(redPos[0], redPos[1] + RENDER_OFFSET_Y);
+    bluChar.setPosition(bluePos[0],bluePos[1] + RENDER_OFFSET_Y);
 
     r.render(); requestAnimationFrame(loop);
   }

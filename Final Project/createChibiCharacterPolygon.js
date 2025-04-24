@@ -1,4 +1,4 @@
-export function createChibiCharacterPolygon(scale = 0.3) {
+export function createChibiCharacterPolygon(scale = 0.2) {
     const finalCoords = [];
   
     function buildCircle(cx, cy, radius, segments) {

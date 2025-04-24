@@ -24,7 +24,7 @@ import os
 import http.server
 import socketserver
 
-PORT = 8087
+PORT = 8088
 
 os.chdir("..")
 
