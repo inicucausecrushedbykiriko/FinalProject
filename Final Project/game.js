@@ -5,7 +5,7 @@ import Renderer             from '/FinalProject/Final Project/lib/Viz/2DRenderer
 import ChibiCharacterObject from '/FinalProject/Final Project/ChibiCharacterObject.js';
 import GroundObject         from '/FinalProject/Final Project/GroundObject.js';
 import SlopeObject          from '/FinalProject/Final Project/SlopeObject.js';
-
+import MovingPlatformObject from '/FinalProject/Final Project/MovingPlatformObject.js';
 //--------------------------------------------------------------------
 //  Global constants
 //--------------------------------------------------------------------
@@ -66,6 +66,10 @@ const RAMP_W  = 0.04;
 const TROUGH_W= 0.10;
 
 
+/* ───── lift in the 2nd-floor gap ───── */
+
+
+
 const U0 = LEFT_IN + GAP_W;
 const U1 = U0 + 0.20;
 const U2 = U1 + RAMP_W;
@@ -90,7 +94,11 @@ const platformDefs = [
   { x:U6, y:Y_TOP - D, w:U7 - U6 },                            // bottom d‑2
   { x:U8, y:Y_TOP,     w:U9 - U8 },                            // right segment
 ];
-
+const LIFT_W        = GAP_W * 0.8;                    // 80 % of gap
+const LIFT_X0       = LEFT_IN + (GAP_W - LIFT_W) * 0.5;
+const LIFT_Y_START  = Y_TOP;                          // flush with floor-2
+const LIFT_TARGET_Y = Y0 + 0.12;                      // ends just above floor-1
+const liftRect = { x:LIFT_X0, y:LIFT_Y_START, w:LIFT_W, h:WALL_THK };
 /* ------------  RAMPS  ------------ */
 const slopeDefs = [
   // first floor ramps
@@ -304,16 +312,27 @@ function collideAABB(rect, pos, vel){
   }
   return null;
 }
+/* ——— dynamic yellow lift ——— */
+let lift = null;      // will be given the real object inside initGame()
 
 /* iterate every rectangle */
 function resolvePlatformCollisions(pos, vel){
   let onGround = false;
+
   for (const p of platformDefs){
     const hit = collideAABB(p, pos, vel);
     if (hit === 'ground') onGround = true;
   }
+
+  /* treat the moving lift as another rectangle – once it exists */
+  if (lift){
+    const hitLift = collideAABB(lift.bbox(), pos, vel);
+    if (hitLift === 'ground') onGround = true;
+  }
   return onGround;
 }
+
+
 
 /* upper-edge + lower-edge test for each slope */
 function collideSlope(sl, pos, vel){
@@ -396,6 +415,18 @@ export async function initGame(){
   await lever.init();
   await r.appendSceneObject(lever);
 
+  lift = new MovingPlatformObject(
+    r._device,
+    r._canvasFormat,
+    liftRect,                           // ← now accepted
+    new Float32Array([0.9,0.8,0.1,1]),  // mustard-yellow
+    LIFT_TARGET_Y
+  );
+  
+  await lift.init();
+  await r.appendSceneObject(lift);
+  
+
   /* characters */
   let redPos=[LEFT_IN+0.15,GROUND_Y+CHAR_HALF_H],
       bluePos=[LEFT_IN+0.30,GROUND_Y+CHAR_HALF_H],
@@ -441,12 +472,19 @@ export async function initGame(){
     const sw = lever.bbox();
     /* --- floor-button press detection --- */
     function pressTest(pos){
-      const sw = lever.bbox();                 // top-left coord frame
-      const footY = pos[1] - CHAR_HALF_H;      // character’s feet
-      const withinX = (pos[0] + CHAR_HALF_W > sw.x) && (pos[0] - CHAR_HALF_W < sw.x + sw.w);
-      const onTop   = Math.abs(footY - sw.y) <= 0.02;   // small tolerance
-      if (withinX && onTop) lever.press();
+      const sw = lever.bbox();
+      const footY  = pos[1] - CHAR_HALF_H;
+      const hitX   = (pos[0] + CHAR_HALF_W > sw.x) && (pos[0] - CHAR_HALF_W < sw.x + sw.w);
+      const onTop  = Math.abs(footY - sw.y) <= 0.02;
+      if (hitX && onTop){
+        if (!lever._pressed){        // first time only
+          lever.press();
+          lift.startDrop();          // <-- tell the lift to move
+        }
+      }
     }
+    
+    
 
     pressTest(redPos);    // call each frame after collisions
     pressTest(bluePos);
