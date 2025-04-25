@@ -230,8 +230,18 @@ function collideAABB(rect,pos,vel){
   const penL=right-cxL,penR=cxR-left,penT=cyT-bottom,penB=top-cyB,minPen=Math.min(penL,penR,penT,penB);
   if(minPen===penT){pos[1]-=penT;vel[1]=Math.min(0,vel[1]);return'ceiling';}
   if(minPen===penB){pos[1]+=penB;vel[1]=Math.max(0,vel[1]);return'ground';}
-  if(minPen===penL){pos[0]+=penL;vel[0]=Math.max(0,vel[0]);return'wall';}
-  if(minPen===penR){pos[0]-=penR;vel[0]=Math.min(0,vel[0]);return'wall';}
+  if(minPen===penL){
+    if (top - (pos[1] - CHAR_HALF_H) <= 0.04){
+      pos[1] = top + CHAR_HALF_H; vel[1] = 0; return 'ground';
+    }
+    pos[0] += penL; vel[0] = Math.max(0, vel[0]); return 'wall';
+  }
+  if(minPen===penR){
+        if (top - (pos[1] - CHAR_HALF_H) <= 0.04){
+            pos[1] = top + CHAR_HALF_H; vel[1] = 0; return 'ground';
+          }
+          pos[0] -= penR; vel[0] = Math.min(0, vel[0]); return 'wall';
+  }
   return null;
 }
 
