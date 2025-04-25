@@ -23,7 +23,7 @@ const CHAR_HALF_H = 0.065;
 const RENDER_OFFSET_Y = 0.035;
 
 const MOVE_SPEED  = 0.40;
-const JUMP_SPEED  = 1.0;
+const JUMP_SPEED  = 1.5;
 const GRAVITY     = 2.50;
 
 //--------------------------------------------------------------------
@@ -311,8 +311,38 @@ export async function initGame(){
 
   let last=performance.now();
 
-  function inPool(pos,pool){
-    return pos[0]>pool.x&&pos[0]<pool.x+pool.w&&pos[1]-CHAR_HALF_H<pool.y&&pos[1]+CHAR_HALF_H>pool.y-pool.h;
+  const EPS = 1e-4;                 // tiny tolerance
+
+  function inPool(pos, pool){
+    const hitX = (pos[0] + CHAR_HALF_W > pool.x) &&
+                 (pos[0] - CHAR_HALF_W < pool.x + pool.w);
+
+    const foot = pos[1] - CHAR_HALF_H;
+    const head = pos[1] + CHAR_HALF_H;
+    const hitY = (foot <= pool.y + EPS) &&
+                 (head >= pool.y - pool.h - EPS);
+
+    return hitX && hitY;
+  }
+
+  /*──────────────────────────────────────────────
+    Liquid-hazard logic (red ⇢ water death,
+                         blue ⇢ lava death)      */
+  function liquidDeathTest(){
+    // Red hero (magma) dies in WATER
+    for(const p of waterPools){
+      if(inPool(redPos,p)){
+        location.reload();
+        return;
+      }
+    }
+    // Blue hero (water) dies in LAVA
+    for(const p of lavaPools){
+      if(inPool(bluePos,p)){
+        location.reload();
+        return;
+      }
+    }
   }
 
   function loop(now=performance.now()){
@@ -334,20 +364,29 @@ export async function initGame(){
     blueOnG=landGround(bluePos,blueVel)||resolvePlatformCollisions(bluePos,blueVel)||resolveSlopeCollisions(bluePos,blueVel);
 
     function pressTest(pos){
-      const sw=lever.bbox();
-      const hitX=(pos[0]+CHAR_HALF_W>sw.x)&&(pos[0]-CHAR_HALF_W<sw.x+sw.w);
-      const footY=pos[1]-CHAR_HALF_H,onTop=Math.abs(footY-sw.y)<=0.02;
-      if(hitX&&onTop){
-        if(!lever._pressed){
-          lever.press();
-          lift.startDrop();
-        }
+      const sw = lever.bbox();
+
+      const footRect = {
+        x : pos[0] - CHAR_HALF_W,
+        y : pos[1] - CHAR_HALF_H + 0.02,
+        w : CHAR_HALF_W * 2,
+        h : 0.04
+      };
+
+      const pressed = collideAABB(sw,
+                                  [ footRect.x + CHAR_HALF_W,
+                                    footRect.y + footRect.h*0.5 ],
+                                  [0,0] ) === 'ground';
+
+      if (pressed && !lever._pressed) {
+        lever.press();
+        lift.startDrop();
       }
     }
+
     pressTest(redPos);pressTest(bluePos);
 
-    for(const p of waterPools){if(inPool(redPos,p)||inPool(bluePos,p))location.reload();}
-    for(const p of lavaPools){if(inPool(redPos,p)||inPool(bluePos,p))location.reload();}
+    liquidDeathTest();
 
     redChar.setPosition(redPos[0],redPos[1]+RENDER_OFFSET_Y);
     bluChar.setPosition(bluePos[0],bluePos[1]+RENDER_OFFSET_Y);
