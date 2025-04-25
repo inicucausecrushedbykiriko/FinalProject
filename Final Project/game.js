@@ -257,6 +257,24 @@ function collideSlope(sl,pos,vel){
   return null;
 }
 
+
+let isDead = false;
+function showDeathPopup(){
+  if (isDead) return;
+  isDead = true;
+
+  const div = document.createElement('div');
+  div.textContent = 'You died!';
+  Object.assign(div.style, {
+    position:'fixed', top:'50%', left:'50%', transform:'translate(-50%,-50%)',
+    background:'rgba(0,0,0,0.85)', color:'#fff',
+    fontSize:'48px', padding:'24px 48px',
+    borderRadius:'12px', fontFamily:'Arial, sans-serif',
+    textAlign:'center', zIndex:9999
+  });
+  document.body.appendChild(div);
+}
+
 function resolveSlopeCollisions(pos,vel){
   let onGround=false;
   for(const s of slopeDefs){
@@ -332,6 +350,7 @@ export async function initGame(){
     // Red hero (magma) dies in WATER
     for(const p of waterPools){
       if(inPool(redPos,p)){
+        showDeathPopup();
         location.reload();
         return;
       }
@@ -339,6 +358,7 @@ export async function initGame(){
     // Blue hero (water) dies in LAVA
     for(const p of lavaPools){
       if(inPool(bluePos,p)){
+        showDeathPopup();
         location.reload();
         return;
       }
@@ -362,6 +382,9 @@ export async function initGame(){
 
     redOnG=landGround(redPos,redVel)||resolvePlatformCollisions(redPos,redVel)||resolveSlopeCollisions(redPos,redVel);
     blueOnG=landGround(bluePos,blueVel)||resolvePlatformCollisions(bluePos,blueVel)||resolveSlopeCollisions(bluePos,blueVel);
+
+    
+
 
     function pressTest(pos){
       const sw = lever.bbox();
