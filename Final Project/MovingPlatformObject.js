@@ -26,10 +26,11 @@ export default class MovingPlatformObject extends SceneObject {
 
   startDrop(){
     if (!this._dropping){                 // trigger only once
-    this._dropping = true;
-    this._lastTime = performance.now(); // ← reset timer so dt ≈ 1 frame
+      console.log('[LIFT] startDrop() called');
+      this._dropping = true;
+      this._lastTime = performance.now(); // ← reset timer so dt ≈ 1 frame
     }
-    }
+  }
 
   bbox(){       return this._rect; }        // let game logic query live AABB
 
@@ -107,6 +108,7 @@ export default class MovingPlatformObject extends SceneObject {
   /*──────── per-frame update (called by Renderer) ────────*/
   updateGeometry(){
     if(!this._dropping) return;
+    console.log(`[LIFT] y=${this._rect.y.toFixed(3)}  off=${this._offsetArr[1].toFixed(3)}`);
 
     const tNow  = performance.now();
     const dt    = (tNow - this._lastTime)*0.001;   // ms → s

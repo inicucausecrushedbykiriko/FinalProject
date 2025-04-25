@@ -413,6 +413,7 @@ export async function initGame(){
 
       if (pressed && !lever._pressed) {
         lever.press();
+        console.log('[SWITCH] first contact – should turn green & start drop');
         lift.startDrop();
       }
     }
