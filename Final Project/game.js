@@ -7,7 +7,8 @@ import GroundObject         from '/FinalProject/Final Project/GroundObject.js';
 import SlopeObject          from '/FinalProject/Final Project/SlopeObject.js';
 import MovingPlatformObject from '/FinalProject/Final Project/MovingPlatformObject.js';
 import SwitchObject         from '/FinalProject/Final Project/SwitchObject.js';
-
+import VerticalLift          from '/FinalProject/Final Project/VerticalLift.js';
+import HiddenBridge          from '/FinalProject/Final Project/HiddenBridge.js';
 //--------------------------------------------------------------------
 //  Global constants
 //--------------------------------------------------------------------
@@ -23,7 +24,7 @@ const CHAR_HALF_H = 0.065;
 const RENDER_OFFSET_Y = 0.035;
 
 const MOVE_SPEED  = 0.40;
-const JUMP_SPEED  = 1.5;
+const JUMP_SPEED  = 1.2;
 const GRAVITY     = 2.50;
 
 //--------------------------------------------------------------------
@@ -81,6 +82,16 @@ const A6 = A5 + R3;
 const A7 = A6 + T3;
 const A8 = A7 + R3;
 const A9 = RIGHT_IN - GAP_R3;
+
+
+/**  Returns true iff the player’s feet are on the button’s top face. */
+function onSwitch(swBBox, pos){
+  const footY = pos[1] - CHAR_HALF_H;                // Y of player’s soles
+  const hitX  = (pos[0] + CHAR_HALF_W > swBBox.x) &&
+                (pos[0] - CHAR_HALF_W < swBBox.x + swBBox.w);
+  const onTop = Math.abs(footY - swBBox.y) <= 0.025; // 2.5-px tolerance
+  return hitX && onTop;
+}
 
 //--------------------------------------------------------------------
 //  PLATFORM / SLOPE ARRAYS
@@ -140,6 +151,7 @@ platformDefs.push(
   { x:(A6+A7-LEDGE_W3)*0.5,y:Z_TOP+LEDGE_H3,w:LEDGE_W3 }
 );
 
+
 //--------------------------------------------------------------------
 //  STAIRS & FOURTH FLOOR
 //--------------------------------------------------------------------
@@ -161,6 +173,39 @@ platformDefs.push(
   { x:B0, y:Z5, w:B1-B0 },
   { x:B2, y:Z5, w:B3-B2 }
 );
+
+/* ──────────  THIRD–FLOOR (right-gap) TEAL LIFT  ────────── */
+// 1) rectangle that makes up the lift itself
+const TLIFT_W        = GAP_R3 * 0.8;                    // 80 % of the right gap
+const TLIFT_X0       = A9 + (GAP_R3 - TLIFT_W) * 0.5;   // centred in that gap
+const TLIFT_Y_START  = Z_TOP;                           // flush with floor-3 top
+const TLIFT_TARGET_Y = Y_TOP + 0.05;                    // stops just above floor-2
+const tLiftRect      = { x: TLIFT_X0, y: TLIFT_Y_START,
+                         w: TLIFT_W,  h: WALL_THK };
+
+/* 2) the two switches that control this lift */
+// -- left switch now sits ON FLOOR 2, directly under the shaft
+const TLIFT_SW_A = {
+  x : TLIFT_X0 + (TLIFT_W - SWITCH_BASE_W) * 0.5-0.2,       // centred on shaft
+  y : Y_TOP                                            // ← floor-2 surface
+};
+// -- right switch stays on FLOOR 3 (unchanged)
+const TLIFT_SW_B = {
+  x : A8 - SWITCH_BASE_W - 0.5,
+  y : Z_TOP
+};
+
+
+/* ──────────  FOURTH-FLOOR HIDDEN BRIDGE  ────────── */
+const BRIDGE_Y       = Z5;                // same top-Y as floor-4 platforms
+const BRIDGE_W       = GAP2_W;     // almost full gap
+const bridgeRect     = { x: B1 + 0.01, y: BRIDGE_Y, w: BRIDGE_W, h: WALL_THK };
+
+const BRIDGE_SW_L = { x: B0 + 0.08, y: Z5 };            // left switch (on plat-1)
+const BRIDGE_SW_R = { x: B3 - SWITCH_BASE_W - 0.8, y: Z5 };  // right switch
+
+
+
 
 //--------------------------------------------------------------------
 //  WATER & LAVA POOLS
@@ -246,6 +291,8 @@ function collideAABB(rect,pos,vel){
 }
 
 let lift=null;
+let tLift = null;
+let bridge = null;
 
 function resolvePlatformCollisions(pos,vel){
   let onGround=false;
@@ -253,6 +300,9 @@ function resolvePlatformCollisions(pos,vel){
     if(collideAABB(p,pos,vel)==='ground')onGround=true;
   }
   if(lift&&collideAABB(lift.bbox(),pos,vel)==='ground')onGround=true;
+  if (tLift && collideAABB(tLift.bbox(), pos, vel) === 'ground') onGround = true;
+  if (bridge && bridge.isVisible() &&
+     collideAABB(bridge.bbox(), pos, vel) === 'ground') onGround = true;
   return onGround;
 }
 
@@ -324,7 +374,39 @@ export async function initGame(){
   lift=new MovingPlatformObject(r._device,r._canvasFormat,liftRect,new Float32Array([0.9,0.8,0.1,1]),LIFT_TARGET_Y);
   await lift.init();await r.appendSceneObject(lift);
 
-  let redPos=[LEFT_IN+0.15,GROUND_Y+CHAR_HALF_H],bluePos=[LEFT_IN+0.30,GROUND_Y+CHAR_HALF_H];
+    /* ─────────  third-floor teal lift  ───────── */
+  tLift = new VerticalLift(
+    r._device, r._canvasFormat,
+    tLiftRect,                       // rectangle
+    new Float32Array([0.1,0.9,0.9,1]),   // teal colour
+    TLIFT_TARGET_Y
+  );
+  await tLift.init();
+  await r.appendSceneObject(tLift);
+
+  /* two switches on floor-3 that drive tLift */
+  const sw3A = new SwitchObject(r._device, r._canvasFormat, [TLIFT_SW_A.x, TLIFT_SW_A.y]);
+  const sw3B = new SwitchObject(r._device, r._canvasFormat, [TLIFT_SW_B.x, TLIFT_SW_B.y]);
+  await sw3A.init(); await sw3B.init();
+  await r.appendSceneObject(sw3A); await r.appendSceneObject(sw3B);
+
+  /* ─────────  top-floor hidden bridge  ───────── */
+  bridge = new HiddenBridge(
+    r._device, r._canvasFormat,
+    bridgeRect,
+    new Float32Array([0.85,0.3,0.0,1])     // orange-brown
+  );
+  await bridge.init();
+  await r.appendSceneObject(bridge);
+
+  /* two switches on floor-4 that drive the bridge */
+  const sw4L = new SwitchObject(r._device, r._canvasFormat, [BRIDGE_SW_L.x, BRIDGE_SW_L.y]);
+  const sw4R = new SwitchObject(r._device, r._canvasFormat, [BRIDGE_SW_R.x, BRIDGE_SW_R.y]);
+  await sw4L.init(); await sw4R.init();
+  await r.appendSceneObject(sw4L); await r.appendSceneObject(sw4R);
+
+
+  let redPos=[LEFT_IN+0.15,GROUND_Y+CHAR_HALF_H+2],bluePos=[LEFT_IN+0.30,GROUND_Y+CHAR_HALF_H];
   let redVel=[0,0],blueVel=[0,0],redOnG=true,blueOnG=true;
 
   const redChar=await createChar(r._device,r._canvasFormat,new Float32Array([1,0,0,1]),redPos);
@@ -393,32 +475,50 @@ export async function initGame(){
     redOnG=landGround(redPos,redVel)||resolvePlatformCollisions(redPos,redVel)||resolveSlopeCollisions(redPos,redVel);
     blueOnG=landGround(bluePos,blueVel)||resolvePlatformCollisions(bluePos,blueVel)||resolveSlopeCollisions(bluePos,blueVel);
 
-    
-
-
-    function pressTest(pos){
-      const sw = lever.bbox();
-
-      const footRect = {
-        x : pos[0] - CHAR_HALF_W,
-        y : pos[1] - CHAR_HALF_H + 0.02,
-        w : CHAR_HALF_W * 2,
-        h : 0.04
-      };
-
-      const pressed = collideAABB(sw,
-                                  [ footRect.x + CHAR_HALF_W,
-                                    footRect.y + footRect.h*0.5 ],
-                                  [0,0] ) === 'ground';
-
-      if (pressed && !lever._pressed) {
-        lever.press();
-        console.log('[SWITCH] first contact – should turn green & start drop');
-        lift.startDrop();
-      }
+    function setSwitchState(sw, pressed){
+      if (pressed && !sw._pressed) sw.press();      // go down & turn green
+      if (!pressed && sw._pressed) sw.release();    // pop back up & turn red
     }
+/* ------------------------------------------------------------------
+   pressTest()  – call **once per frame** (after collisions are solved)
+   ------------------------------------------------------------------ */
+/* ------------------------------------------------------------------
+   pressTest()  – call once per frame *after* collisions are resolved
+   ------------------------------------------------------------------ */
+   function pressTest(){
 
-    pressTest(redPos);pressTest(bluePos);
+    /* ---------- floor-1 single switch → yellow lift ---------- */
+    const floor1Pressed =
+          onSwitch(lever.bbox(), redPos) ||
+          onSwitch(lever.bbox(), bluePos);
+  
+    setSwitchState(lever, floor1Pressed);
+    if (floor1Pressed) lift.startDrop();      // one-way elevator
+  
+    /* ---------- floor-3 twin switches → teal “upper” lift ----- */
+    const left3  = onSwitch(sw3A.bbox(), redPos) || onSwitch(sw3A.bbox(), bluePos);
+    const right3 = onSwitch(sw3B.bbox(), redPos) || onSwitch(sw3B.bbox(), bluePos);
+  
+    setSwitchState(sw3A, left3);
+    setSwitchState(sw3B, right3);
+  
+    if ( left3 || right3 )   tLift.startDrop();   // any one held → go down
+    else                     tLift.startRise();   // none held   → go up
+  
+    /* ---------- floor-4 gap switches → retractable bridge ----- */
+    const left4  = onSwitch(sw4L.bbox(), redPos) || onSwitch(sw4L.bbox(), bluePos);
+    const right4 = onSwitch(sw4R.bbox(), redPos) || onSwitch(sw4R.bbox(), bluePos);
+  
+    setSwitchState(sw4L, left4);
+    setSwitchState(sw4R, right4);
+  
+    bridge.setVisible( left4 || right4 );         // show bridge while held
+  }
+  
+  
+  
+    
+    pressTest();
 
     liquidDeathTest();
 

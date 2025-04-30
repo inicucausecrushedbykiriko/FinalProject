@@ -131,8 +131,19 @@ export default class SwitchObject extends SceneObject {
 
     this._device.queue.writeBuffer(this._cBtn,  0, this._btnCol);
     this._btnOffset[1] = this._btnYOffset;
-    this._device.queue.writeBuffer(this._tBtnBuf, 0, this._btnOffset);
+    this._device
+    .queue.writeBuffer(this._tBtnBuf, 0, this._btnOffset);
   }
+
+  release(){              // ← add this
+       if(!this._pressed) return;
+       this._pressed = false;
+       this._btnYOffset = 0;
+       this._btnCol = new Float32Array([1,0,0,1]);   // red again
+       this._device.queue.writeBuffer(this._cBtn,0,this._btnCol);
+       this._btnOffset[1] = 0;
+      this._device.queue.writeBuffer(this._tBtnBuf,0,this._btnOffset);
+     }
 
   render(pass){
     pass.setPipeline(this._pipe);
