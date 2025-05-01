@@ -9,6 +9,8 @@ import MovingPlatformObject from '/FinalProject/Final Project/MovingPlatformObje
 import SwitchObject         from '/FinalProject/Final Project/SwitchObject.js';
 import VerticalLift          from '/FinalProject/Final Project/VerticalLift.js';
 import HiddenBridge          from '/FinalProject/Final Project/HiddenBridge.js';
+import StandardTextObject from '/FinalProject/Final Project/lib/DSViz/StandardTextObject.js';
+import DiamondObject        from '/FinalProject/Final Project/DiamondObject.js';
 //--------------------------------------------------------------------
 //  Global constants
 //--------------------------------------------------------------------
@@ -26,6 +28,7 @@ const RENDER_OFFSET_Y = 0.035;
 const MOVE_SPEED  = 0.40;
 const JUMP_SPEED  = 1.2;
 const GRAVITY     = 2.50;
+
 
 //--------------------------------------------------------------------
 //  FLOOR & RAMP DESCRIPTORS
@@ -92,6 +95,9 @@ function onSwitch(swBBox, pos){
   const onTop = Math.abs(footY - swBBox.y) <= 0.025; // 2.5-px tolerance
   return hitX && onTop;
 }
+
+
+/* diamonds (centre positions in NDC) */
 
 //--------------------------------------------------------------------
 //  PLATFORM / SLOPE ARRAYS
@@ -205,7 +211,12 @@ const BRIDGE_SW_L = { x: B0 + 0.08, y: Z5 };            // left switch (on plat-
 const BRIDGE_SW_R = { x: B3 - SWITCH_BASE_W - 0.8, y: Z5 };  // right switch
 
 
-
+const diamonds = [
+  /* floor-1 */ {x:0.1, y:Y0+0.1},
+  /* floor-2 */ {x: U4+0.1, y:Y_TOP+0.03},
+  /* floor-3 */ {x:(A4+A5)*0.5, y:Z_TOP+0.23},
+  /* floor-4 */ {x:(B0+B1)*0.5+0.35, y:Z5+0.03}
+];
 
 //--------------------------------------------------------------------
 //  WATER & LAVA POOLS
@@ -352,9 +363,53 @@ async function createChar(d,f,c,s){const ch=new ChibiCharacterObject(d,f,c,{posi
 //--------------------------------------------------------------------
 //  Main entry
 //--------------------------------------------------------------------
+
+function diamondHit(diam, pos){
+  const left   = diam.x;
+  const right  = diam.x + diam.w;
+  const top    = diam.y;
+  const bottom = top - diam.h;
+
+  const cxL = pos[0] - CHAR_HALF_W;
+  const cxR = pos[0] + CHAR_HALF_W;
+  const cyT = pos[1] + CHAR_HALF_H;
+  const cyB = pos[1] - CHAR_HALF_H;
+
+  return !( cxR < left || cxL > right ||   // separated on X?
+            cyB > top  || cyT < bottom );  // separated on Y?
+}
 export async function initGame(){
+
+    /* ──────────────────────────────────────────────
+     SIMPLE HUD  (fps • session-time • score text)
+     ────────────────────────────────────────────── */
+     let score     = 0;
+     let fps       = 0,   frames = 0;
+     const tStart  = performance.now();
+   
+     function hudString() {
+       const seconds = ((performance.now() - tStart) / 1000).toFixed(1);
+       return `
+       W / ↑ : jump        
+       A,D / ←→ : move
+       Time  : ${seconds}s
+       Score : ${score}
+       FPS   : ${fps}
+       `;
+     }
+   
+     // 👇  this is the ONLY place we touch StandardTextObject
+     const hudCanvas = new StandardTextObject(hudString());
+   
   const canvas=document.getElementById('gameCanvas');if(!canvas)return;
   const r=await initRenderer(canvas);
+
+  /* ────────────────────────────────────────────────
+   diamondHit(diamBBox, pos)
+     returns true when the player’s full AABB overlaps
+     the diamond’s AABB – so side, top, or bottom all count
+   ──────────────────────────────────────────────── */
+
 
   for(const b of [
     new GroundObject(r._device,r._canvasFormat,2,WALL_THK,[-1,GROUND_Y]),
@@ -404,6 +459,26 @@ export async function initGame(){
   const sw4R = new SwitchObject(r._device, r._canvasFormat, [BRIDGE_SW_R.x, BRIDGE_SW_R.y]);
   await sw4L.init(); await sw4R.init();
   await r.appendSceneObject(sw4L); await r.appendSceneObject(sw4R);
+
+
+  // ⇠ ADD diamonds
+  const gemObjs = [];
+  score = 0;
+  for (const d of diamonds){             //  ‹ diamonds[] comes from the
+    const g = new DiamondObject(         //    little array we added near
+      r._device, r._canvasFormat,        //    the other “defs”.
+      [d.x, d.y], 0.035                  // size 0.035 NDC units
+    );
+    await g.init();
+    gemObjs.push(g);
+    await r.appendSceneObject(g);
+  }
+  setInterval(() => {          // every 1 s
+    fps = frames;              // copy & reset the per-frame counter
+    frames = 0;
+    hudCanvas.updateText( hudString() );
+  }, 1000);
+
 
 
   let redPos=[LEFT_IN+0.15,GROUND_Y+CHAR_HALF_H+2],bluePos=[LEFT_IN+0.30,GROUND_Y+CHAR_HALF_H];
@@ -458,6 +533,7 @@ export async function initGame(){
   }
 
   function loop(now=performance.now()){
+    ++frames;
     const dt=(now-last)/1000;last=now;
 
     redVel[0]=keys['a']?-MOVE_SPEED:keys['d']?MOVE_SPEED:0;
@@ -514,17 +590,29 @@ export async function initGame(){
   
     bridge.setVisible( left4 || right4 );         // show bridge while held
   }
+
+  for (const g of gemObjs){
+    if (!g.collected &&
+        ( diamondHit(g.bbox(), redPos) || diamondHit(g.bbox(), bluePos) ) )
+    {
+      g.pickUp();        // hide / flag inactive
+      score += 10;       // award points
+      hudCanvas.updateText( hudString() );
+    }
+  }
+  
   
   
   
     
-    pressTest();
+  pressTest();
 
-    liquidDeathTest();
+  liquidDeathTest();
 
-    redChar.setPosition(redPos[0],redPos[1]+RENDER_OFFSET_Y);
-    bluChar.setPosition(bluePos[0],bluePos[1]+RENDER_OFFSET_Y);
-    r.render();requestAnimationFrame(loop);
+  redChar.setPosition(redPos[0],redPos[1]+RENDER_OFFSET_Y);
+  bluChar.setPosition(bluePos[0],bluePos[1]+RENDER_OFFSET_Y);
+  hudCanvas.updateText( hudString() );
+  r.render();requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);
 }
