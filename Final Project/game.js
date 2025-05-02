@@ -12,6 +12,8 @@ import HiddenBridge          from '/FinalProject/Final Project/HiddenBridge.js';
 import StandardTextObject from '/FinalProject/Final Project/lib/DSViz/StandardTextObject.js';
 import DiamondObject        from '/FinalProject/Final Project/DiamondObject.js';
 import ProceduralBackgroundObject from '/FinalProject/Final Project/ProceduralBackgroundObject.js';
+import FireTrailGPUObject       from '/FinalProject/Final Project/FireTrailGPUObject.js';
+import WaterTrailGPUObject      from '/FinalProject/Final Project/WaterTrailGPUObject.js';
 //--------------------------------------------------------------------
 //  Global constants
 //--------------------------------------------------------------------
@@ -361,6 +363,8 @@ function resolveSlopeCollisions(pos,vel){
 async function initRenderer(c){const r=new Renderer(c);await r.init();return r;}
 async function createChar(d,f,c,s){const ch=new ChibiCharacterObject(d,f,c,{position:s});await ch.createGeometry();await ch.createShaders();await ch.createRenderPipeline();await ch.createComputePipeline();return ch;}
 
+
+
 //--------------------------------------------------------------------
 //  Main entry
 //--------------------------------------------------------------------
@@ -410,6 +414,12 @@ export async function initGame(){
     new Float32Array([0.80,0.90,1.00]));  // bottom RGB
   await bg.init();
   await r.appendSceneObject(bg);   // FIRST in the list
+
+  const fireFX  = new FireTrailGPUObject (r._device, r._canvasFormat, 1024);
+  const waterFX = new WaterTrailGPUObject(r._device, r._canvasFormat, 1024);
+  await fireFX.init(); await waterFX.init();
+  await r.appendSceneObject(fireFX);
+  await r.appendSceneObject(waterFX);
 
 
   /* ────────────────────────────────────────────────
@@ -610,12 +620,15 @@ export async function initGame(){
   }
   
   
-  
+  fireFX .setOrigin(redPos [0], redPos [1] + 0.04);   // neck/head
+  waterFX.setOrigin(bluePos[0], bluePos[1] + 0.02);
   
     
   pressTest();
 
   liquidDeathTest();
+
+
 
   redChar.setPosition(redPos[0],redPos[1]+RENDER_OFFSET_Y);
   bluChar.setPosition(bluePos[0],bluePos[1]+RENDER_OFFSET_Y);
