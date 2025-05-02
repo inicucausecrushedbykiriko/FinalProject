@@ -11,6 +11,7 @@ import VerticalLift          from '/FinalProject/Final Project/VerticalLift.js';
 import HiddenBridge          from '/FinalProject/Final Project/HiddenBridge.js';
 import StandardTextObject from '/FinalProject/Final Project/lib/DSViz/StandardTextObject.js';
 import DiamondObject        from '/FinalProject/Final Project/DiamondObject.js';
+import ProceduralBackgroundObject from '/FinalProject/Final Project/ProceduralBackgroundObject.js';
 //--------------------------------------------------------------------
 //  Global constants
 //--------------------------------------------------------------------
@@ -403,6 +404,13 @@ export async function initGame(){
    
   const canvas=document.getElementById('gameCanvas');if(!canvas)return;
   const r=await initRenderer(canvas);
+
+  const bg = new ProceduralBackgroundObject(r._device, r._canvasFormat,
+    new Float32Array([0.02,0.10,0.30]),   // top RGB
+    new Float32Array([0.80,0.90,1.00]));  // bottom RGB
+  await bg.init();
+  await r.appendSceneObject(bg);   // FIRST in the list
+
 
   /* ────────────────────────────────────────────────
    diamondHit(diamBBox, pos)
