@@ -14,6 +14,7 @@ import DiamondObject        from '/FinalProject/Final Project/DiamondObject.js';
 import ProceduralBackgroundObject from '/FinalProject/Final Project/ProceduralBackgroundObject.js';
 import FireTrailGPUObject       from '/FinalProject/Final Project/FireTrailGPUObject.js';
 import WaterTrailGPUObject      from '/FinalProject/Final Project/WaterTrailGPUObject.js';
+import DoorObject            from '/FinalProject/Final Project/DoorObject.js';
 //--------------------------------------------------------------------
 //  Global constants
 //--------------------------------------------------------------------
@@ -221,6 +222,15 @@ const diamonds = [
   /* floor-4 */ {x:(B0+B1)*0.5+0.35, y:Z5+0.03}
 ];
 
+
+/* ------ EXIT DOORS (top‑right corner) ------ */
+const DOOR_W = 0.10, DOOR_H = 0.18;
+const RED_DOOR_RECT  = { x: B3 - DOOR_W*2 - 0.02, y: Z5 + DOOR_H, w: DOOR_W, h: DOOR_H };
+const BLUE_DOOR_RECT = { x: B3 - DOOR_W - 0.01,  y: Z5 + DOOR_H, w: DOOR_W, h: DOOR_H };
+
+let redFinished  = false;
+let blueFinished = false;
+
 //--------------------------------------------------------------------
 //  WATER & LAVA POOLS
 //--------------------------------------------------------------------
@@ -415,8 +425,10 @@ export async function initGame(){
   await bg.init();
   await r.appendSceneObject(bg);   // FIRST in the list
 
-  const fireFX  = new FireTrailGPUObject (r._device, r._canvasFormat, 1024);
-  const waterFX = new WaterTrailGPUObject(r._device, r._canvasFormat, 1024);
+  let fireFX  = new FireTrailGPUObject (r._device, r._canvasFormat, 1024);
+  let waterFX = new WaterTrailGPUObject(r._device, r._canvasFormat, 1024);
+  let waterFXEnabled = true;  
+  let fireFXEnabled = true;
   await fireFX.init(); await waterFX.init();
   await r.appendSceneObject(fireFX);
   await r.appendSceneObject(waterFX);
@@ -478,6 +490,14 @@ export async function initGame(){
   await sw4L.init(); await sw4R.init();
   await r.appendSceneObject(sw4L); await r.appendSceneObject(sw4R);
 
+  /* ---- finish doors ---- */
+  const redDoor  = new DoorObject(r._device, r._canvasFormat, RED_DOOR_RECT , 'red' );
+  const blueDoor = new DoorObject(r._device, r._canvasFormat, BLUE_DOOR_RECT, 'blue');
+  await redDoor.init();  await blueDoor.init();
+  await r.appendSceneObject(redDoor);
+  await r.appendSceneObject(blueDoor);
+  
+
 
   // ⇠ ADD diamonds
   const gemObjs = [];
@@ -499,7 +519,7 @@ export async function initGame(){
 
 
 
-  let redPos=[LEFT_IN+0.15,GROUND_Y+CHAR_HALF_H+2],bluePos=[LEFT_IN+0.30,GROUND_Y+CHAR_HALF_H];
+  let redPos=[LEFT_IN+0.15,GROUND_Y+CHAR_HALF_H+2],bluePos=[LEFT_IN+0.30,GROUND_Y+CHAR_HALF_H+2];
   let redVel=[0,0],blueVel=[0,0],redOnG=true,blueOnG=true;
 
   const redChar=await createChar(r._device,r._canvasFormat,new Float32Array([1,0,0,1]),redPos);
@@ -552,17 +572,48 @@ export async function initGame(){
 
   function loop(now=performance.now()){
     ++frames;
+    /* ───── disable particle objects once their hero has finished ───── */
+    if (!fireFXEnabled && fireFX) {                 // first frame after OFF
+      r._objects = r._objects.filter(o => o !== fireFX);   // remove from list
+      fireFX = null;                                // let GC reclaim it
+    }
+    if (!waterFXEnabled && waterFX) {
+      r._objects = r._objects.filter(o => o !== waterFX);
+      waterFX = null;
+    }
+
     const dt=(now-last)/1000;last=now;
 
-    redVel[0]=keys['a']?-MOVE_SPEED:keys['d']?MOVE_SPEED:0;
-    blueVel[0]=keys['ArrowLeft']?-MOVE_SPEED:keys['ArrowRight']?MOVE_SPEED:0;
+    /* ─── horizontal input ─── */
+    if (!redFinished) {
+      redVel[0] = keys['a'] ? -MOVE_SPEED :
+                  keys['d'] ?  MOVE_SPEED : 0;
+    }
+    if (!blueFinished) {
+      blueVel[0] = keys['ArrowLeft']  ? -MOVE_SPEED :
+                  keys['ArrowRight'] ?  MOVE_SPEED : 0;
+    }
 
-    if(keys['w']&&redOnG){redVel[1]=JUMP_SPEED;redOnG=false;}
-    if(keys['ArrowUp']&&blueOnG){blueVel[1]=JUMP_SPEED;blueOnG=false;}
+    /* ─── jumping ─── */
+    if (!redFinished && keys['w'] && redOnG) {
+      redVel[1] = JUMP_SPEED; redOnG = false;
+    }
+    if (!blueFinished && keys['ArrowUp'] && blueOnG) {
+      blueVel[1] = JUMP_SPEED; blueOnG = false;
+    }
 
-    redVel[1]-=GRAVITY*dt;blueVel[1]-=GRAVITY*dt;
-    redPos[0]+=redVel[0]*dt;redPos[1]+=redVel[1]*dt;
-    bluePos[0]+=blueVel[0]*dt;bluePos[1]+=blueVel[1]*dt;
+    /* ─── gravity + integrate ─── */
+    if (!redFinished) {
+      redVel[1] -= GRAVITY * dt;
+      redPos[0] += redVel[0] * dt;
+      redPos[1] += redVel[1] * dt;
+    }
+    if (!blueFinished) {
+      blueVel[1] -= GRAVITY * dt;
+      bluePos[0] += blueVel[0] * dt;
+      bluePos[1] += blueVel[1] * dt;
+    }
+
 
     clampRoom(redPos,redVel);clampRoom(bluePos,blueVel);
 
@@ -620,8 +671,9 @@ export async function initGame(){
   }
   
   
-  fireFX .setOrigin(redPos [0], redPos [1] + 0.04);   // neck/head
-  waterFX.setOrigin(bluePos[0], bluePos[1] + 0.02);
+  if (fireFX)  fireFX .setOrigin(redPos [0], redPos [1] + 0.04);
+  if (waterFX) waterFX.setOrigin(bluePos[0], bluePos[1] + 0.02);
+  
   
     
   pressTest();
@@ -633,6 +685,29 @@ export async function initGame(){
   redChar.setPosition(redPos[0],redPos[1]+RENDER_OFFSET_Y);
   bluChar.setPosition(bluePos[0],bluePos[1]+RENDER_OFFSET_Y);
   hudCanvas.updateText( hudString() );
+
+  /* ---- check door arrivals ---- */
+  if (!redFinished  && diamondHit(redDoor .bbox(), redPos )) {   // reuse helper
+    redFinished = true;
+    fireFXEnabled = false;    // optional – stop particle trail
+    redChar.setColor(new Float32Array([0,0,0,0]));  // hide
+    r._objects = r._objects.filter(o => o !== fireFX && o !== redChar);
+  }
+  if (!blueFinished && diamondHit(blueDoor.bbox(), bluePos)) {
+    blueFinished = true;
+    waterFXEnabled = false;
+    bluChar.setColor(new Float32Array([0,0,0,0]));
+    r._objects = r._objects.filter(o => o !== waterFX && o !== bluChar);
+  }
+
+  /* if both heroes finished → jump to end page */
+  if (redFinished && blueFinished){
+    const tUsed = ((performance.now() - tStart)/1000).toFixed(1);
+    window.location.href =
+      `/FinalProject/Final Project/finish.html?time=${tUsed}&score=${score}`;
+    return;                       // stop game loop
+  }
+  
   r.render();requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);
