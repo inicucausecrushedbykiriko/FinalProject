@@ -35,7 +35,11 @@ FUTURE WORK
 Potential extensions include online cooperative play via WebRTC DataChannels, a JSON‑driven level editor with live preview, fixed‑timestep sub‑stepping for smoother physics on high‑refresh monitors, and full game‑pad and touch‑screen support.
 
 VIDEO DEMO
-<video src="assets/Demo.mp4" controls width="640"></video>
+The video is inside the assets/Demo.mp4
+<video width="640" controls>
+  <source src="assets/Demo.mp4" type="video/mp4">
+</video>
+
 
 INDIVIDUAL REFLECTIONS
 
