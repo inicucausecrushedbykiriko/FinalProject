@@ -44,6 +44,6 @@ The video is inside the assets/Demo.mp4
 INDIVIDUAL REFLECTIONS
 
 Titus Weng (tw013@bucknell.edu):
-Writing this game forced me to understand bind groups versus pipelines and to learn how to debug GPU conditions with buffer downloads. My proudest moment was adding the flame-like effect and make it really look like a flame following the chibi characters. Given another week I would refactor physics and fix some minor bugs and add more rendering to the texture of the floors, chibi characters themselves and adding other  The project aligns with job listings that ask for shader experience and low‑level WebGPU expertise (for WebXR development positions).
+Writing this game forced me to understand bind groups versus pipelines and to learn how to debug GPU conditions with buffer downloads. My proudest moment was adding the flame-like effect and make it really look like a flame following the chibi characters. Given another week I would refactor physics and fix some minor bugs and add more rendering to the texture of the floors, chibi characters themselves and adding other  The project aligns with job listings that ask for shader experience and low‑level WebGPU expertise.
 
 Aiden Ren (zr002@bucknell.edu):
