@@ -32,7 +32,6 @@ const RENDER_OFFSET_Y = 0.035;
 const MOVE_SPEED  = 0.40;
 const JUMP_SPEED  = 1.2;
 const GRAVITY     = 2.50;
-const SINK_TIME   = 0.8;
 
 
 //--------------------------------------------------------------------
@@ -235,9 +234,7 @@ let blueFinished = false;
 //--------------------------------------------------------------------
 //  WATER & LAVA POOLS
 //--------------------------------------------------------------------
-
 const LIQUID_THK = 0.03
-
 const waterPools = [
   { x:U2, y:Y_TOP-D, w:U3-U2, h:LIQUID_THK },
   { x:A2, y:Z_TOP-D3, w:A3-A2, h:LIQUID_THK }
@@ -340,8 +337,8 @@ function collideSlope(sl,pos,vel){
   const t=(pos[0]-xL)/(xR-xL);
   const yTop=TL[1]*(1-t)+TR[1]*t,yBot=BL[1]*(1-t)+BR[1]*t;
   const foot=pos[1]-CHAR_HALF_H,head=pos[1]+CHAR_HALF_H;
-  if(foot<=yTop&&vel[1]<=0&&foot>=yTop-0.02){pos[1]=yTop+CHAR_HALF_H;vel[1]=0;return'ground';}
-  if(head>=yBot&&vel[1]>=0&&head<=yBot+0.02){pos[1]=yBot-CHAR_HALF_H;vel[1]=0;return'ceiling';}
+  if(foot<=yTop&&vel[1]<=0&&foot>=yTop-0.06){pos[1]=yTop+CHAR_HALF_H;vel[1]=0;return'ground';}
+  if(head>=yBot&&vel[1]>=0&&head<=yBot+0.06){pos[1]=yBot-CHAR_HALF_H;vel[1]=0;return'ceiling';}
   return null;
 }
 
@@ -361,8 +358,6 @@ function showDeathPopup(){
     textAlign:'center', zIndex:9999
   });
   document.body.appendChild(div);
-  setTimeout(()=>location.reload(),   // restart after animation
-           SINK_TIME*1000 + 200);   // +200 ms buffer
 }
 
 function resolveSlopeCollisions(pos,vel){
@@ -526,8 +521,6 @@ export async function initGame(){
 
 
   let redPos=[LEFT_IN+0.15,GROUND_Y+CHAR_HALF_H],bluePos=[LEFT_IN+0.30,GROUND_Y+CHAR_HALF_H];
-  let redSinking=false, blueSinking=false;
-  let redSinkT = 0,      blueSinkT = 0;
   let redVel=[0,0],blueVel=[0,0],redOnG=true,blueOnG=true;
 
   const redChar=await createChar(r._device,r._canvasFormat,new Float32Array([1,0,0,1]),redPos);
@@ -560,28 +553,23 @@ export async function initGame(){
     Liquid-hazard logic (red ⇢ water death,
                          blue ⇢ lava death)      */
   function liquidDeathTest(){
-      /* red ⇢ water death */
-      if(!redSinking){
-        for(const p of waterPools){
-          if(inPool(redPos,p)){
-            redSinking = true; redVel = [0,0];
-            fireFXEnabled = false;           // stop particle trail
-            showDeathPopup();
-          }
-        }
-      }
-      /* blue ⇢ lava death */
-      if(!blueSinking){
-        for(const p of lavaPools){
-          if(inPool(bluePos,p)){
-            blueSinking = true; blueVel = [0,0];
-            waterFXEnabled = false;
-            showDeathPopup();
-          }
-        }
+    // Red hero (magma) dies in WATER
+    for(const p of waterPools){
+      if(inPool(redPos,p)){
+        showDeathPopup();
+        location.reload();
+        return;
       }
     }
-
+    // Blue hero (water) dies in LAVA
+    for(const p of lavaPools){
+      if(inPool(bluePos,p)){
+        showDeathPopup();
+        location.reload();
+        return;
+      }
+    }
+  }
 
   function loop(now=performance.now()){
     ++frames;
@@ -615,28 +603,18 @@ export async function initGame(){
       blueVel[1] = JUMP_SPEED; blueOnG = false;
     }
 
-    /* ─── gravity / sinking / integrate ─── */
-    const SINK_VEL = (CHAR_HALF_H * 2 + 0.02) / SINK_TIME;   // downward speed
-
-    // ---------- RED hero ----------
-    if (redSinking) {
-      redSinkT += dt;
-      redPos[1] -= SINK_VEL * dt;                   // slide straight down
-    } else if (!redFinished) {
+    /* ─── gravity + integrate ─── */
+    if (!redFinished) {
       redVel[1] -= GRAVITY * dt;
       redPos[0] += redVel[0] * dt;
       redPos[1] += redVel[1] * dt;
     }
-
-    // ---------- BLUE hero ----------
-    if (blueSinking) {
-      blueSinkT += dt;
-      bluePos[1] -= SINK_VEL * dt;
-    } else if (!blueFinished) {
+    if (!blueFinished) {
       blueVel[1] -= GRAVITY * dt;
       bluePos[0] += blueVel[0] * dt;
       bluePos[1] += blueVel[1] * dt;
     }
+
 
     clampRoom(redPos,redVel);clampRoom(bluePos,blueVel);
 
@@ -649,6 +627,9 @@ export async function initGame(){
     }
 /* ------------------------------------------------------------------
    pressTest()  – call **once per frame** (after collisions are solved)
+   ------------------------------------------------------------------ */
+/* ------------------------------------------------------------------
+   pressTest()  – call once per frame *after* collisions are resolved
    ------------------------------------------------------------------ */
    function pressTest(){
 
