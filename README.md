@@ -36,7 +36,11 @@ Potential extensions include online cooperative play via WebRTC DataChannels, a 
 
 VIDEO DEMO
 The video is inside the assets/Demo.mp4
-[![Watch the video](https://raw.githubusercontent.com/inicucausecrushedbykiriko/FinalProject/main/FinalProject/assets/Demo.mp4)]
+
+
+https://github.com/user-attachments/assets/e659c8c1-c19e-434b-8991-ff19987b82a2
+
+
 
 
 INDIVIDUAL REFLECTIONS
